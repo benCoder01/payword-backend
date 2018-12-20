@@ -1,0 +1,10 @@
+build_image:
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.example.com
+    - docker build -t registry.example.com/my-group/my-project .
+    - docker push registry.example.com/my-group/my-project:latest
+  only:
+    - master

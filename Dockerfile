@@ -1,6 +1,8 @@
 # api Dockerfile
 
-FROM golang:1.10
+FROM golang:alpine AS builder
+
+RUN apk update && apk add --no-cache git
 
 # Download and install the latest release of dep
 ADD https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 /usr/bin/dep
@@ -11,7 +13,15 @@ COPY . .
 
 RUN dep ensure --vendor-only
 
-RUN go build main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-w -s" -o /go/bin/payword-backend
 
-CMD ["./main"]
+#RUN go build -o /go/bin/payword-backend main.go
+
+#CMD ["./main"]
 #CMD [ "go run main.go" ]
+
+FROM scratch
+# Copy our static executable.
+COPY --from=builder /go/bin/payword-backend /go/bin/payword-backend
+
+ENTRYPOINT ["/go/bin/payword-backend"]

@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"os"
 
 	"github.com/globalsign/mgo/bson"
 	"github.com/go-bongo/bongo"
@@ -11,7 +12,7 @@ var connection *bongo.Connection
 
 func Init() error {
 	config := &bongo.Config{
-		ConnectionString: "mongo",
+		ConnectionString: getConnectionString(),
 		Database:         "payword-backend",
 	}
 
@@ -23,6 +24,14 @@ func Init() error {
 
 	connection = pConnection
 	return nil
+}
+
+func getConnectionString() string {
+	if os.Getenv("APP_ENV") == "production" {
+		return "mongo"
+	}
+	return "localhost"
+
 }
 
 // User repräsentiert den Nutzer in der Datenbank

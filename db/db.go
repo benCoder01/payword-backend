@@ -163,6 +163,20 @@ func (game *Game) RemoveUser(username string) error {
 	return game.Save()
 }
 
+func (game *Game) FindNewAdmin() string {
+	for _, member := range game.Members {
+		if member != game.Admin {
+			return member
+		}
+	}
+
+	return ""
+}
+
+func (game *Game) Delete() error {
+	return connection.Collection("games").DeleteDocument(game)
+}
+
 func GameExists(name string) (bool, error) {
 	_, err := FindGameByName(name)
 	if err != nil {

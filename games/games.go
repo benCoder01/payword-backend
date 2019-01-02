@@ -210,8 +210,20 @@ func removeUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if game.Admin == ctrlReq.Username {
-		render.Render(w, r, responses.ErrInvalidRequest(errors.New("the user is admin")))
+	// test if the current user is the last user in the game
+	if len(game.Members) == 1 {
+		err = game.Delete()
+
+		if err != nil {
+			render.Render(w, r, responses.ErrInternal(err))
+			return
+		}
+
+		// render deleted game with status 200
+		if err := render.Render(w, r, responses.NewGameResponse(game)); err != nil {
+			render.Render(w, r, responses.ErrRender(err))
+			return
+		}
 		return
 	}
 
@@ -220,6 +232,10 @@ func removeUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		render.Render(w, r, responses.ErrInternal(err))
 		return
+	}
+
+	if game.Admin == ctrlReq.Username {
+		game.Admin = game.FindNewAdmin()
 	}
 
 	if err := render.Render(w, r, responses.NewGameResponse(game)); err != nil {

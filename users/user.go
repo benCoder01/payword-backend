@@ -87,7 +87,8 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		render.Render(w, r, responses.ErrInternal(err))
-		return
+		returndocker run --name payword-backend -p 27017:27017 -d mongo
+
 	}
 
 	if err := render.Render(w, r, responses.NewTokenResponse(token)); err != nil {
@@ -215,6 +216,17 @@ func saveEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user, err := db.FindUserByName(emailReq.Username)
+
+	if err != nil {
+		if db.NotFoundError(err) {
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("User not found")))
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+		}
+		return
+	}
+
 	// If a user already saved his mail, the current adress will be replaced
 	mail, err := db.GetMailAdress(emailReq.Username)
 
@@ -227,11 +239,6 @@ func saveEmail(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		mail.Mail = emailReq.Mail
-	}
-
-	if err != nil {
-		render.Render(w, r, responses.ErrInternal(err))
-		return
 	}
 
 	if err := render.Render(w, r, responses.NewMailResponse(mail.Username, mail.Mail)); err != nil {
@@ -247,11 +254,12 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 		render.Render(w, r, responses.ErrInvalidRequest(err))
 		return
 	}
+
 	mailInfo, err := db.GetMailAdress(emailReq.Username)
 
 	if err != nil {
 		if db.NotFoundError(err) {
-			render.Render(w, r, responses.ErrInvalidRequest(errors.New("No email found")))
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("Invalid credentials")))
 		} else {
 			render.Render(w, r, responses.ErrInternal(err))
 		}
@@ -262,25 +270,32 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if db.NotFoundError(err) {
-			render.Render(w, r, responses.ErrInvalidRequest(errors.New("No email found")))
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("Invalid credentials")))
 		} else {
 			render.Render(w, r, responses.ErrInternal(err))
 		}
 		return
 	}
 
-	newUserPassword, err := generateNewPassword()
+	generatedPassword, err := generateNewPassword()
 
 	if err != nil {
 		render.Render(w, r, responses.ErrInternal(err))
 		return
 	}
 
-	user.Password = newUserPassword
+	hashedPassword, err := createHash(generatedPassword)
+
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	user.Password = hashedPassword
 
 	err = db.SaveUser(user)
 
-	err = mail.Send(mailInfo.Mail, newUserPassword)
+	err = mail.Send(mailInfo.Mail, hashedPassword)
 
 	if err := render.Render(w, r, responses.NewUserResponse(user)); err != nil {
 		render.Render(w, r, responses.ErrRender(err))
@@ -294,6 +309,7 @@ func overwritePassword(user *db.User, password string) error {
 }
 
 func generateNewPassword() (string, error) {
+	// TODO: generate shorter password
 	return password.Generate(64, 10, 10, false, false)
 }
 

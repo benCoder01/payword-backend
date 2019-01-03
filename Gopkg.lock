@@ -56,6 +56,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/sethvargo/go-password"
+  packages = ["password"]
+  revision = "bc15c697eeda69a082991d2f1ed37660658fea32"
+  version = "v0.1.2"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["bcrypt","blowfish"]
@@ -70,6 +76,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7d4c0fc092809e07a3c9d7ea59b094106dfda9140a23bbc7550259991391071b"
+  inputs-digest = "9a247b2c7f030412c64ce399dae7eccaf9b4694941349dd115fe6132478a0ffa"
   solver-name = "gps-cdcl"
   solver-version = 1

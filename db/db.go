@@ -59,6 +59,35 @@ type Game struct {
 	Members            []string
 }
 
+type Mail struct {
+	bongo.DocumentBase `bson:",inline"` // Metadata
+	Username           string
+	Mail               string // Mail adress of the user
+}
+
+func (mail *Mail) Save() error {
+	return connection.Collection("mails").Save(mail)
+}
+
+func GetMailAdress(username string) (*Mail, error) {
+	mail := &Mail{}
+	err := connection.Collection("mails").FindOne(bson.M{"username": username}, mail)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return mail, nil
+}
+
+func NotFoundError(err error) bool {
+	if _, ok := err.(*bongo.DocumentNotFoundError); ok {
+		return true
+	}
+
+	return false
+}
+
 func (game *Game) Save() error {
 	return connection.Collection("games").Save(game)
 }

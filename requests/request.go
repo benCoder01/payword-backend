@@ -36,6 +36,19 @@ func (pcr *PasswordChangeRequest) Bind(r *http.Request) error {
 	return nil
 }
 
+type EmailControlRequest struct {
+	Username string `json:"username"`
+	Mail     string `json:"mail"`
+}
+
+func (secr *EmailControlRequest) Bind(r *http.Request) error {
+	if secr == nil {
+		return errors.New("missing required user fields")
+	}
+
+	return nil
+}
+
 type CreateGameRequest struct {
 	Name  string `json:"name"`
 	Admin string `json:"admin"`

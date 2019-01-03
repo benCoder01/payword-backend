@@ -8,12 +8,14 @@ import (
 
 	"github.com/go-bongo/bongo"
 	"gitlab.com/benCoder01/payword-backend/db"
+	"gitlab.com/benCoder01/payword-backend/mail"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth"
 	"github.com/go-chi/render"
+	"github.com/sethvargo/go-password/password"
 	"gitlab.com/benCoder01/payword-backend/requests"
 	"gitlab.com/benCoder01/payword-backend/responses"
 	"gitlab.com/benCoder01/payword-backend/token"
@@ -29,6 +31,7 @@ func Router(cors *cors.Cors) chi.Router {
 
 		r.Post("/sign-in", signIn)
 		r.Post("/sign-up", signUp)
+		r.Post("/mail/reset-password", setNewPassword)
 	})
 
 	// Protected
@@ -39,6 +42,7 @@ func Router(cors *cors.Cors) chi.Router {
 		r.Use(jwtauth.Authenticator)
 
 		r.Post("/change-password", changePassword)
+		r.Post("/mail/update-mail", saveEmail)
 	})
 
 	/*
@@ -201,6 +205,96 @@ func compareHashToPassword(hash string, password string) bool {
 	}
 
 	return true
+}
+
+func saveEmail(w http.ResponseWriter, r *http.Request) {
+	emailReq := &requests.EmailControlRequest{}
+
+	if err := render.Bind(r, emailReq); err != nil {
+		render.Render(w, r, responses.ErrInvalidRequest(err))
+		return
+	}
+
+	// If a user already saved his mail, the current adress will be replaced
+	mail, err := db.GetMailAdress(emailReq.Username)
+
+	if err != nil {
+		if db.NotFoundError(err) {
+			mail = &db.Mail{Username: emailReq.Username, Mail: emailReq.Mail}
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+			return
+		}
+	} else {
+		mail.Mail = emailReq.Mail
+	}
+
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	if err := render.Render(w, r, responses.NewMailResponse(mail.Username, mail.Mail)); err != nil {
+		render.Render(w, r, responses.ErrRender(err))
+		return
+	}
+}
+
+func setNewPassword(w http.ResponseWriter, r *http.Request) {
+	emailReq := &requests.EmailControlRequest{}
+
+	if err := render.Bind(r, emailReq); err != nil {
+		render.Render(w, r, responses.ErrInvalidRequest(err))
+		return
+	}
+	mailInfo, err := db.GetMailAdress(emailReq.Username)
+
+	if err != nil {
+		if db.NotFoundError(err) {
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("No email found")))
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+		}
+		return
+	}
+
+	user, err := db.FindUserByName(mailInfo.Username)
+
+	if err != nil {
+		if db.NotFoundError(err) {
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("No email found")))
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+		}
+		return
+	}
+
+	newUserPassword, err := generateNewPassword()
+
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	user.Password = newUserPassword
+
+	err = db.SaveUser(user)
+
+	err = mail.Send(mailInfo.Mail, newUserPassword)
+
+	if err := render.Render(w, r, responses.NewUserResponse(user)); err != nil {
+		render.Render(w, r, responses.ErrRender(err))
+		return
+	}
+}
+
+func overwritePassword(user *db.User, password string) error {
+	user.Password = password
+	return db.SaveUser(user)
+}
+
+func generateNewPassword() (string, error) {
+	return password.Generate(64, 10, 10, false, false)
 }
 
 func getUsers(w http.ResponseWriter, r *http.Request) {

@@ -87,7 +87,7 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		render.Render(w, r, responses.ErrInternal(err))
-		returndocker run --name payword-backend -p 27017:27017 -d mongo
+		return
 
 	}
 
@@ -228,7 +228,7 @@ func saveEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If a user already saved his mail, the current adress will be replaced
-	mail, err := db.GetMailAdress(emailReq.Username)
+	mail, err := db.GetMailAdress(user.Username)
 
 	if err != nil {
 		if db.NotFoundError(err) {

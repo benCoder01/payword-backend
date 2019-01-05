@@ -211,12 +211,7 @@ func FindAllGames() []Game {
 	game := &Game{}
 
 	for results.Next(game) {
-		games = append(games, Game{
-			Name:       game.Name,
-			Admin:      game.Admin,
-			Categories: game.Categories,
-			Members:    game.Members,
-		})
+		games = append(games, *game)
 	}
 
 	return games
@@ -249,10 +244,7 @@ func FindAllUsers() []User {
 	user := &User{}
 
 	for results.Next(user) {
-		users = append(users, User{
-			Username: user.Username,
-			Password: user.Password,
-		})
+		users = append(users, *user)
 	}
 
 	return users
@@ -267,4 +259,8 @@ func FindUserByName(username string) (*User, error) {
 	}
 
 	return user, nil
+}
+
+func DeleteUser(user *User) error {
+	return connection.Collection("user").DeleteDocument(user)
 }

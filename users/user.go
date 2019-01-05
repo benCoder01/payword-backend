@@ -232,7 +232,6 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	gamesFromDb := db.FindAllGames()
-
 	// Spiele, bei denen nur der User mitspielt.
 	for _, game := range gamesFromDb {
 		for _, member := range game.Members {
@@ -246,7 +245,11 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 
-					return
+					break
+				}
+
+				if game.Admin == user.Username {
+					game.Admin = game.FindNewAdmin()
 				}
 
 				err = game.RemoveUser(user.Username)
@@ -256,16 +259,21 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				if game.Admin == user.Username {
-					game.Admin = game.FindNewAdmin()
-				}
-
 				break
 			}
 		}
 	}
 
-	//TODO: Render 200er response
+	err = db.DeleteUser(user)
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	if err := render.Render(w, r, responses.NewSuccessResponse()); err != nil {
+		render.Render(w, r, responses.ErrRender(err))
+		return
+	}
 }
 
 func getUsers(w http.ResponseWriter, r *http.Request) {

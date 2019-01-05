@@ -8,6 +8,18 @@ import (
 	"github.com/go-chi/render"
 )
 
+type SuccesResponse struct {
+	Message string `json:"message"`
+}
+
+func NewSuccessResponse() *SuccesResponse {
+	return &SuccesResponse{"Success"}
+}
+
+func (sr *SuccesResponse) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
+
 // UserResponse gibt öffentliche Daten eines Nutzers wieder
 type UserResponse struct {
 	Username string `json:"username"`

@@ -43,6 +43,7 @@ func Router(cors *cors.Cors) chi.Router {
 
 		r.Post("/change-password", changePassword)
 		r.Post("/mail/update-mail", saveEmail)
+		r.Post("/delete", deleteUser)
 	})
 
 	/*
@@ -286,11 +287,6 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 
 	hashedPassword, err := createHash(generatedPassword)
 
-	if err != nil {
-		render.Render(w, r, responses.ErrInternal(err))
-		return
-	}
-
 	user.Password = hashedPassword
 
 	err = db.SaveUser(user)
@@ -298,6 +294,79 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 	err = mail.Send(mailInfo.Mail, hashedPassword)
 
 	if err := render.Render(w, r, responses.NewUserResponse(user)); err != nil {
+		render.Render(w, r, responses.ErrRender(err))
+		return
+	}
+
+}
+
+func deleteUser(w http.ResponseWriter, r *http.Request) {
+	// for deleting a user, the user also has to send his password for stronger security
+	userReq := &requests.UserRequest{}
+
+	if err := render.Bind(r, userReq); err != nil {
+		render.Render(w, r, responses.ErrInvalidRequest(err))
+		return
+	}
+
+	user, err := db.FindUserByName(userReq.Username)
+
+	if err != nil {
+
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("Could not validate user")))
+			return
+		}
+
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	if !compareHashToPassword(user.Password, userReq.Password) {
+		render.Render(w, r, responses.ErrInvalidRequest(errors.New("Could not validate user")))
+		return
+	}
+
+	gamesFromDb := db.FindAllGames()
+	// Spiele, bei denen nur der User mitspielt.
+	for _, game := range gamesFromDb {
+		for _, member := range game.Members {
+			if member == user.Username {
+				// test if the current user is the last user in the game
+				if len(game.Members) == 1 {
+					err = game.Delete()
+
+					if err != nil {
+						render.Render(w, r, responses.ErrInternal(err))
+						return
+					}
+
+					break
+				}
+
+				if game.Admin == user.Username {
+					game.Admin = game.FindNewAdmin()
+				}
+
+				err = game.RemoveUser(user.Username)
+
+				if err != nil {
+					render.Render(w, r, responses.ErrInternal(err))
+					return
+				}
+
+				break
+			}
+		}
+	}
+
+	err = db.DeleteUser(user)
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	if err := render.Render(w, r, responses.NewSuccessResponse()); err != nil {
 		render.Render(w, r, responses.ErrRender(err))
 		return
 	}

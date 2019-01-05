@@ -220,7 +220,7 @@ func saveEmail(w http.ResponseWriter, r *http.Request) {
 	user, err := db.FindUserByName(emailReq.Username)
 
 	if err != nil {
-		if db.NotFoundError(err) {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
 			render.Render(w, r, responses.ErrInvalidRequest(errors.New("User not found")))
 		} else {
 			render.Render(w, r, responses.ErrInternal(err))
@@ -232,7 +232,7 @@ func saveEmail(w http.ResponseWriter, r *http.Request) {
 	mail, err := db.GetMailAdress(user.Username)
 
 	if err != nil {
-		if db.NotFoundError(err) {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
 			mail = &db.Mail{Username: emailReq.Username, Mail: emailReq.Mail}
 		} else {
 			render.Render(w, r, responses.ErrInternal(err))
@@ -242,11 +242,20 @@ func saveEmail(w http.ResponseWriter, r *http.Request) {
 		mail.Mail = emailReq.Mail
 	}
 
+	err = mail.Save()
+
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
 	if err := render.Render(w, r, responses.NewMailResponse(mail.Username, mail.Mail)); err != nil {
 		render.Render(w, r, responses.ErrRender(err))
 		return
 	}
 }
+
+// TODO: Delete user from mail db
 
 func setNewPassword(w http.ResponseWriter, r *http.Request) {
 	emailReq := &requests.EmailControlRequest{}
@@ -259,7 +268,7 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 	mailInfo, err := db.GetMailAdress(emailReq.Username)
 
 	if err != nil {
-		if db.NotFoundError(err) {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
 			render.Render(w, r, responses.ErrInvalidRequest(errors.New("Invalid credentials")))
 		} else {
 			render.Render(w, r, responses.ErrInternal(err))
@@ -267,10 +276,15 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if mailInfo.Mail != emailReq.Mail {
+		render.Render(w, r, responses.ErrInvalidRequest(errors.New("Invalid credentials")))
+		return
+	}
+
 	user, err := db.FindUserByName(mailInfo.Username)
 
 	if err != nil {
-		if db.NotFoundError(err) {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
 			render.Render(w, r, responses.ErrInvalidRequest(errors.New("Invalid credentials")))
 		} else {
 			render.Render(w, r, responses.ErrInternal(err))
@@ -291,13 +305,18 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 
 	err = db.SaveUser(user)
 
-	err = mail.Send(mailInfo.Mail, hashedPassword)
+	err = mail.Send(mailInfo.Mail, generatedPassword)
 
 	if err := render.Render(w, r, responses.NewUserResponse(user)); err != nil {
 		render.Render(w, r, responses.ErrRender(err))
 		return
 	}
 
+}
+
+func generateNewPassword() (string, error) {
+	// TODO: generate shorter password
+	return password.Generate(16, 5, 0, false, false)
 }
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
@@ -370,16 +389,6 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 		render.Render(w, r, responses.ErrRender(err))
 		return
 	}
-}
-
-func overwritePassword(user *db.User, password string) error {
-	user.Password = password
-	return db.SaveUser(user)
-}
-
-func generateNewPassword() (string, error) {
-	// TODO: generate shorter password
-	return password.Generate(64, 10, 10, false, false)
 }
 
 func getUsers(w http.ResponseWriter, r *http.Request) {

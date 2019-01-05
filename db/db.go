@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/globalsign/mgo/bson"
@@ -66,6 +67,7 @@ type Mail struct {
 }
 
 func (mail *Mail) Save() error {
+	fmt.Println(mail.GetId().String())
 	return connection.Collection("mails").Save(mail)
 }
 
@@ -78,14 +80,6 @@ func GetMailAdress(username string) (*Mail, error) {
 	}
 
 	return mail, nil
-}
-
-func NotFoundError(err error) bool {
-	if _, ok := err.(*bongo.DocumentNotFoundError); ok {
-		return true
-	}
-
-	return false
 }
 
 func (game *Game) Save() error {

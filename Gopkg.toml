@@ -56,3 +56,11 @@
 [[constraint]]
   name = "github.com/sethvargo/go-password"
   version = "0.1.2"
+
+[[constraint]]
+  name = "gopkg.in/gomail.v2"
+  version = "2.0.0"
+
+[[constraint]]
+  name = "github.com/go-mail/mail"
+  version = "2.3.1"

@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-bongo/bongo"
 	"gitlab.com/benCoder01/payword-backend/db"
-	"gitlab.com/benCoder01/payword-backend/mail"
+	"gitlab.com/benCoder01/payword-backend/mailer"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
@@ -305,7 +305,11 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 
 	err = db.SaveUser(user)
 
-	err = mail.Send(mailInfo.Mail, generatedPassword)
+	err = mailer.Send(mailInfo.Mail, generatedPassword)
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
 
 	if err := render.Render(w, r, responses.NewUserResponse(user)); err != nil {
 		render.Render(w, r, responses.ErrRender(err))

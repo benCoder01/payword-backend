@@ -8,12 +8,14 @@ import (
 
 	"github.com/go-bongo/bongo"
 	"gitlab.com/benCoder01/payword-backend/db"
+	"gitlab.com/benCoder01/payword-backend/mailer"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth"
 	"github.com/go-chi/render"
+	"github.com/sethvargo/go-password/password"
 	"gitlab.com/benCoder01/payword-backend/requests"
 	"gitlab.com/benCoder01/payword-backend/responses"
 	"gitlab.com/benCoder01/payword-backend/token"
@@ -29,6 +31,7 @@ func Router(cors *cors.Cors) chi.Router {
 
 		r.Post("/sign-in", signIn)
 		r.Post("/sign-up", signUp)
+		r.Post("/mail/reset-password", setNewPassword)
 	})
 
 	// Protected
@@ -39,6 +42,7 @@ func Router(cors *cors.Cors) chi.Router {
 		r.Use(jwtauth.Authenticator)
 
 		r.Post("/change-password", changePassword)
+		r.Post("/mail/update-mail", saveEmail)
 		r.Post("/delete", deleteUser)
 	})
 
@@ -85,6 +89,7 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		render.Render(w, r, responses.ErrInternal(err))
 		return
+
 	}
 
 	if err := render.Render(w, r, responses.NewTokenResponse(token)); err != nil {
@@ -204,6 +209,119 @@ func compareHashToPassword(hash string, password string) bool {
 	return true
 }
 
+func saveEmail(w http.ResponseWriter, r *http.Request) {
+	emailReq := &requests.EmailControlRequest{}
+
+	if err := render.Bind(r, emailReq); err != nil {
+		render.Render(w, r, responses.ErrInvalidRequest(err))
+		return
+	}
+
+	user, err := db.FindUserByName(emailReq.Username)
+
+	if err != nil {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("User not found")))
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+		}
+		return
+	}
+
+	// If a user already saved his mail, the current adress will be replaced
+	mail, err := db.GetMailAdress(user.Username)
+
+	if err != nil {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
+			mail = &db.Mail{Username: emailReq.Username, Mail: emailReq.Mail}
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+			return
+		}
+	} else {
+		mail.Mail = emailReq.Mail
+	}
+
+	err = mail.Save()
+
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	if err := render.Render(w, r, responses.NewMailResponse(mail.Username, mail.Mail)); err != nil {
+		render.Render(w, r, responses.ErrRender(err))
+		return
+	}
+}
+
+// TODO: Delete user from mail db
+
+func setNewPassword(w http.ResponseWriter, r *http.Request) {
+	emailReq := &requests.EmailControlRequest{}
+
+	if err := render.Bind(r, emailReq); err != nil {
+		render.Render(w, r, responses.ErrInvalidRequest(err))
+		return
+	}
+
+	mailInfo, err := db.GetMailAdress(emailReq.Username)
+
+	if err != nil {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("Invalid credentials")))
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+		}
+		return
+	}
+
+	if mailInfo.Mail != emailReq.Mail {
+		render.Render(w, r, responses.ErrInvalidRequest(errors.New("Invalid credentials")))
+		return
+	}
+
+	user, err := db.FindUserByName(mailInfo.Username)
+
+	if err != nil {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
+			render.Render(w, r, responses.ErrInvalidRequest(errors.New("Invalid credentials")))
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+		}
+		return
+	}
+
+	generatedPassword, err := generateNewPassword()
+
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	hashedPassword, err := createHash(generatedPassword)
+
+	user.Password = hashedPassword
+
+	err = db.SaveUser(user)
+
+	err = mailer.Send(mailInfo.Mail, generatedPassword)
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	if err := render.Render(w, r, responses.NewUserResponse(user)); err != nil {
+		render.Render(w, r, responses.ErrRender(err))
+		return
+	}
+
+}
+
+func generateNewPassword() (string, error) {
+	return password.Generate(16, 5, 0, false, false)
+}
+
 func deleteUser(w http.ResponseWriter, r *http.Request) {
 	// for deleting a user, the user also has to send his password for stronger security
 	userReq := &requests.UserRequest{}
@@ -268,6 +386,23 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		render.Render(w, r, responses.ErrInternal(err))
 		return
+	}
+
+	mail, err := db.GetMailAdress(userReq.Username)
+
+	if err != nil {
+
+		if _, ok := err.(*bongo.DocumentNotFoundError); !ok {
+			render.Render(w, r, responses.ErrInternal(err))
+			return
+		}
+	} else {
+		err = db.DeleteMail(mail)
+
+		if err != nil {
+			render.Render(w, r, responses.ErrInternal(err))
+			return
+		}
 	}
 
 	if err := render.Render(w, r, responses.NewSuccessResponse()); err != nil {

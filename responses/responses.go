@@ -89,6 +89,19 @@ func NewGameListResponse(games []db.Game) []render.Renderer {
 	return list
 }
 
+type MailResponse struct {
+	Username string `json:"username"`
+	Mail     string `json:"mail"`
+}
+
+func NewMailResponse(username string, mail string) *MailResponse {
+	return &MailResponse{Username: username, Mail: mail}
+}
+
+func (mr *MailResponse) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
+
 // Error Response Management
 
 type ErrResponse struct {

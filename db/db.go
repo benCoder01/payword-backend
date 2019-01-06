@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/globalsign/mgo/bson"
@@ -57,6 +58,28 @@ type Game struct {
 	Admin              string
 	Categories         []Category
 	Members            []string
+}
+
+type Mail struct {
+	bongo.DocumentBase `bson:",inline"` // Metadata
+	Username           string
+	Mail               string // Mail adress of the user
+}
+
+func (mail *Mail) Save() error {
+	fmt.Println(mail.GetId().String())
+	return connection.Collection("mails").Save(mail)
+}
+
+func GetMailAdress(username string) (*Mail, error) {
+	mail := &Mail{}
+	err := connection.Collection("mails").FindOne(bson.M{"username": username}, mail)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return mail, nil
 }
 
 func (game *Game) Save() error {
@@ -263,4 +286,8 @@ func FindUserByName(username string) (*User, error) {
 
 func DeleteUser(user *User) error {
 	return connection.Collection("user").DeleteDocument(user)
+}
+
+func DeleteMail(mail *Mail) error {
+	return connection.Collection("mails").DeleteDocument(mail)
 }

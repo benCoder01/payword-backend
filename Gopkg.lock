@@ -44,6 +44,12 @@
   version = "v1.0.1"
 
 [[projects]]
+  name = "github.com/go-mail/mail"
+  packages = ["."]
+  revision = "f59b9b83a4e522098e3d3eb94e6f81850ad6e973"
+  version = "v2.3.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/maxwellhealth/go-dotaccess"
   packages = ["."]
@@ -56,10 +62,22 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/sethvargo/go-password"
+  packages = ["password"]
+  revision = "bc15c697eeda69a082991d2f1ed37660658fea32"
+  version = "v0.1.2"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["bcrypt","blowfish"]
   revision = "e4dc69e5b2fd71dcaf8bd5d054eb936deb78d1fa"
+
+[[projects]]
+  branch = "v3"
+  name = "gopkg.in/alexcesaro/quotedprintable.v3"
+  packages = ["."]
+  revision = "2caba252f4dc53eaf6b553000885530023f54623"
 
 [[projects]]
   branch = "v2"
@@ -70,6 +88,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7d4c0fc092809e07a3c9d7ea59b094106dfda9140a23bbc7550259991391071b"
+  inputs-digest = "70e63683ac32856608cf0cfc1399fa4f67c42646daf5f9cd8101f1ee0b6f6e14"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -315,7 +315,6 @@ func setNewPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func generateNewPassword() (string, error) {
-	// TODO: generate shorter password
 	return password.Generate(16, 5, 0, false, false)
 }
 
@@ -383,6 +382,23 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		render.Render(w, r, responses.ErrInternal(err))
 		return
+	}
+
+	mail, err := db.GetMailAdress(userReq.Username)
+
+	if err != nil {
+
+		if _, ok := err.(*bongo.DocumentNotFoundError); !ok {
+			render.Render(w, r, responses.ErrInternal(err))
+			return
+		}
+	} else {
+		err = db.DeleteMail(mail)
+
+		if err != nil {
+			render.Render(w, r, responses.ErrInternal(err))
+			return
+		}
 	}
 
 	if err := render.Render(w, r, responses.NewSuccessResponse()); err != nil {

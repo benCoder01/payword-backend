@@ -287,3 +287,7 @@ func FindUserByName(username string) (*User, error) {
 func DeleteUser(user *User) error {
 	return connection.Collection("user").DeleteDocument(user)
 }
+
+func DeleteMail(mail *Mail) error {
+	return connection.Collection("mails").DeleteDocument(mail)
+}

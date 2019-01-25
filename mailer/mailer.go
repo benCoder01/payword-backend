@@ -1,6 +1,7 @@
 package mailer
 
 import (
+	"crypto/tls"
 	"fmt"
 	"html/template"
 	"io"
@@ -40,8 +41,11 @@ func Send(mailaddress string, password string) error {
 	emailUsername := os.Getenv("EMAIL_USERNAME")
 	emailPassword := os.Getenv("EMAIL_PASSWORD")
 
-	d := mail.NewDialer("smtp.udag.de", 587, emailUsername, emailPassword)
+	d := mail.NewDialer("smtp.udag.de", 465, emailUsername, emailPassword)
 	d.StartTLSPolicy = mail.MandatoryStartTLS
+
+	// insecure
+	d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 
 	if err := d.DialAndSend(m); err != nil {
 		return err

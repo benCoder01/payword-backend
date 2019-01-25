@@ -23,5 +23,5 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflag
 FROM scratch
 # Copy our static executable.
 COPY --from=builder /go/bin/payword-backend /go/bin/payword-backend
-
+COPY --from=builder /go/src/gitlab.com/benCoder01/payword-backend/mailer/template.html /go/bin/template.html
 ENTRYPOINT ["/go/bin/payword-backend"]

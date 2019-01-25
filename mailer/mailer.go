@@ -21,7 +21,14 @@ func Send(mailaddress string, password string) error {
 	m.SetHeader("To", mailaddress)
 	m.SetHeader("Subject", "Password Reset")
 
-	t, err := template.ParseFiles("mailer/template.html")
+	var templatePath string
+
+	if os.Getenv("APP_ENV") == "production" {
+		templatePath = "/go/bin/template.html"
+	} else {
+		templatePath = "mailer/template.html"
+	}
+	t, err := template.ParseFiles(templatePath)
 	if err != nil {
 		return err
 	}

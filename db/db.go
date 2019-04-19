@@ -291,3 +291,7 @@ func DeleteUser(user *User) error {
 func DeleteMail(mail *Mail) error {
 	return connection.Collection("mails").DeleteDocument(mail)
 }
+
+func DeleteGame(game *Game) error {
+	return connection.Collection("games").DeleteDocument(game)
+}

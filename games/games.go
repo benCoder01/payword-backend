@@ -44,9 +44,38 @@ func Router(cors *cors.Cors) chi.Router {
 
 		r.Post("/category/add", addCategory)
 		r.Post("/category/remove", removeCategory)
+
+		r.Delete("/{name}/delete", delete)
 	})
 
 	return r
+}
+
+func delete(w http.ResponseWriter, r *http.Request) {
+	gameName := chi.URLParam(r, "name")
+
+	game, err := db.FindGameByName(gameName)
+
+	if err != nil {
+		if _, ok := err.(*bongo.DocumentNotFoundError); ok {
+			render.Render(w, r, responses.ErrNotFound())
+		} else {
+			render.Render(w, r, responses.ErrInternal(err))
+		}
+		return
+	}
+
+	err = db.DeleteGame(game)
+
+	if err != nil {
+		render.Render(w, r, responses.ErrInternal(err))
+		return
+	}
+
+	if err := render.Render(w, r, responses.NewSuccessResponse()); err != nil {
+		render.Render(w, r, responses.ErrRender(err))
+		return
+	}
 }
 
 func create(w http.ResponseWriter, r *http.Request) {
